@@ -6,6 +6,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
+import androidx.preference.SwitchPreference
 import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
@@ -100,12 +101,48 @@ class WireGuardSettingsActivity : BindingSettingsActivity<WireGuard>() {
             }
 
         val amnezia = findPreference<PreferenceCategory>("amneziaCategory")
+        val amneziaPropertyKeys = listOf(
+            "jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4",
+            "i1", "i2", "i3", "i4", "i5", KEY_QUIC_SIGNATURE, "header_protection_key",
+            "content_padding_addition", "rekey_after_time", "rekey_timeout", "reject_after_time",
+            "keepalive_timeout", "max_handshake_attempts", "random_trailers", "disable_cookies",
+        )
+        var showAmneziaProperties = findPreference<SwitchPreference>("enable_amnezia")?.isChecked == true
+        fun setAmneziaPropertiesVisible(visible: Boolean) {
+            showAmneziaProperties = visible
+            amneziaPropertyKeys.forEach { key -> findPreference<Preference>(key)?.isVisible = visible }
+        }
+        setAmneziaPropertiesVisible(showAmneziaProperties)
         onSwitch("enable_amnezia") { on ->
-            if (amnezia == null) return@onSwitch
-            for (i in 0 until amnezia.preferenceCount) {
-                val child = amnezia.getPreference(i)
-                if (child.key != "enable_amnezia") child.isVisible = on
-            }
+            if (on) setAmneziaPropertiesVisible(true)
+        }
+
+        findPreference<Preference>("amneziaQuickActions")?.setOnPreferenceClickListener {
+            val compatibilitySet = isCompatibilityPreset(this)
+            val options = arrayOf(
+                getString(if (showAmneziaProperties) R.string.hide_amnezia_properties else R.string.show_amnezia_properties),
+                getString(if (compatibilitySet) R.string.remove_amnezia_compatibility else R.string.enable_amnezia_compatibility),
+                getString(R.string.mimic_quic),
+                getString(R.string.mimic_dns),
+                getString(R.string.mimic_sip),
+            )
+            MaterialAlertDialogBuilder(this@WireGuardSettingsActivity)
+                .setTitle(R.string.amnezia_quick_actions)
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> setAmneziaPropertiesVisible(!showAmneziaProperties)
+                        1 -> {
+                            if (compatibilitySet) resetAmneziaProperties(this)
+                            else applyAmneziaCompatibility(this)
+                            setAmneziaPropertiesVisible(!compatibilitySet)
+                        }
+                        2 -> applyAmneziaMimic(this, "QUIC")
+                        3 -> applyAmneziaMimic(this, "DNS")
+                        4 -> applyAmneziaMimic(this, "SIP")
+                    }
+                }
+                .show()
+            true
         }
 
         // edit_wireguard.cpp:39-51
@@ -128,6 +165,79 @@ class WireGuardSettingsActivity : BindingSettingsActivity<WireGuard>() {
             askSignatureDomain(this, button)
             true
         }
+    }
+
+    private fun isCompatibilityPreset(screen: PreferenceFragmentCompat): Boolean {
+        fun value(key: String, fallback: String = "") =
+            screen.findPreference<EditTextPreference>(key)?.text?.ifBlank { fallback } ?: fallback
+        return (value("s1", "0").toIntOrNull() ?: 0) == 0 &&
+            (value("s2", "0").toIntOrNull() ?: 0) == 0 &&
+            value("h1", "1") == "1" && value("h2", "2") == "2" &&
+            value("h3", "3") == "3" && value("h4", "4") == "4"
+    }
+
+    private fun enableAmnezia(screen: PreferenceFragmentCompat) {
+        screen.findPreference<SwitchPreference>("enable_amnezia")?.isChecked = true
+    }
+
+    private fun ensureAmneziaBaseParameters(screen: PreferenceFragmentCompat) {
+        val defaults = linkedMapOf(
+            "jc" to "4", "jmin" to "40", "jmax" to "70",
+            "s1" to "0", "s2" to "0", "s3" to "0", "s4" to "0",
+            "h1" to "1", "h2" to "2", "h3" to "3", "h4" to "4",
+        )
+        defaults.forEach { (key, value) ->
+            if (screen.findPreference<EditTextPreference>(key)?.text.isNullOrBlank()) {
+                screen.setFieldText(key, value)
+            }
+        }
+        enableAmnezia(screen)
+    }
+
+    private fun applyAmneziaCompatibility(screen: PreferenceFragmentCompat) {
+        enableAmnezia(screen)
+        mapOf(
+            "jc" to "4", "jmin" to "40", "jmax" to "70",
+            "s1" to "0", "s2" to "0", "s3" to "0", "s4" to "0",
+            "h1" to "1", "h2" to "2", "h3" to "3", "h4" to "4",
+        ).forEach { (key, value) -> screen.setFieldText(key, value) }
+    }
+
+    private fun resetAmneziaProperties(screen: PreferenceFragmentCompat) {
+        listOf(
+            "jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4",
+            "i1", "i2", "i3", "i4", "i5", "header_protection_key", "content_padding_addition",
+            "rekey_after_time", "rekey_timeout", "reject_after_time", "keepalive_timeout",
+            "max_handshake_attempts",
+        ).forEach { screen.setFieldText(it, "") }
+        screen.findPreference<SwitchPreference>("random_trailers")?.isChecked = false
+        screen.findPreference<SwitchPreference>("disable_cookies")?.isChecked = false
+        screen.findPreference<SwitchPreference>("enable_amnezia")?.isChecked = false
+    }
+
+    private fun applyAmneziaMimic(screen: PreferenceFragmentCompat, mode: String) {
+        ensureAmneziaBaseParameters(screen)
+        when (mode) {
+            "QUIC" -> {
+                screen.setFieldText("i1", "$quic1")
+                screen.setFieldText("i2", "$quic2")
+            }
+            "DNS" -> {
+                screen.setFieldText("i1", "$dns1")
+                screen.setFieldText("i2", "")
+            }
+            "SIP" -> {
+                screen.setFieldText("i1", "$sip1")
+                screen.setFieldText("i2", "$sip2")
+            }
+        }
+        val category = screen.findPreference<PreferenceCategory>("amneziaCategory")
+        listOf(
+            "jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4",
+            "i1", "i2", "i3", "i4", "i5", KEY_QUIC_SIGNATURE, "header_protection_key",
+            "content_padding_addition", "rekey_after_time", "rekey_timeout", "reject_after_time",
+            "keepalive_timeout", "max_handshake_attempts", "random_trailers", "disable_cookies",
+        ).forEach { key -> category?.findPreference<Preference>(key)?.isVisible = true }
     }
 
     // edit_wireguard_amnezia.cpp generateSignature
