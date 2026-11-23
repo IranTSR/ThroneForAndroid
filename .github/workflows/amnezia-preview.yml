@@ -1,0 +1,32 @@
+name: AmneziaWG preview build
+
+on:
+  push:
+    branches:
+      - feature/wgtunnel-amnezia-quick-actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: amnezia-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build Throne APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Build
+        uses: ./.github/actions/android-build
+        with:
+          tasks: app:testOssDebugUnitTest app:assembleOssDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: Throne-AmneziaWG-preview-${{ github.run_number }}
+          path: app/build/outputs/apk/oss/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
