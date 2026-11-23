@@ -549,6 +549,15 @@
     <string name="wireguard_udp_timeout">UDP timeout</string>
     <string name="amnezia_settings">AmneziaWG settings</string>
     <string name="amnezia_enable">Enable AmneziaWG</string>
+    <string name="amnezia_quick_actions">AmneziaWG quick actions</string>
+    <string name="amnezia_quick_actions_sum">Compatibility mode and protocol mimic presets</string>
+    <string name="enable_amnezia_compatibility">Enable Amnezia compatibility</string>
+    <string name="remove_amnezia_compatibility">Remove Amnezia compatibility</string>
+    <string name="show_amnezia_properties">Show Amnezia properties</string>
+    <string name="hide_amnezia_properties">Hide Amnezia properties</string>
+    <string name="mimic_quic">Mimic QUIC</string>
+    <string name="mimic_dns">Mimic DNS</string>
+    <string name="mimic_sip">Mimic SIP</string>
     <string name="amnezia_header_protection_key">Header protection key</string>
     <string name="amnezia_content_padding_addition">Content padding addition</string>
     <string name="amnezia_rekey_after_time">Rekey after time</string>
