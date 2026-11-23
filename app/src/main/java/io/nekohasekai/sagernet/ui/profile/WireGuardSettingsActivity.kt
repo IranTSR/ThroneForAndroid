@@ -136,9 +136,18 @@ class WireGuardSettingsActivity : BindingSettingsActivity<WireGuard>() {
                             else applyAmneziaCompatibility(this)
                             setAmneziaPropertiesVisible(!compatibilitySet)
                         }
-                        2 -> applyAmneziaMimic(this, "QUIC")
-                        3 -> applyAmneziaMimic(this, "DNS")
-                        4 -> applyAmneziaMimic(this, "SIP")
+                        2 -> {
+                            applyAmneziaMimic(this, "QUIC")
+                            setAmneziaPropertiesVisible(true)
+                        }
+                        3 -> {
+                            applyAmneziaMimic(this, "DNS")
+                            setAmneziaPropertiesVisible(true)
+                        }
+                        4 -> {
+                            applyAmneziaMimic(this, "SIP")
+                            setAmneziaPropertiesVisible(true)
+                        }
                     }
                 }
                 .show()
@@ -172,8 +181,8 @@ class WireGuardSettingsActivity : BindingSettingsActivity<WireGuard>() {
             screen.findPreference<EditTextPreference>(key)?.text?.ifBlank { fallback } ?: fallback
         return (value("s1", "0").toIntOrNull() ?: 0) == 0 &&
             (value("s2", "0").toIntOrNull() ?: 0) == 0 &&
-            value("h1", "1") == "1" && value("h2", "2") == "2" &&
-            value("h3", "3") == "3" && value("h4", "4") == "4"
+            value("h1") == "1" && value("h2") == "2" &&
+            value("h3") == "3" && value("h4") == "4"
     }
 
     private fun enableAmnezia(screen: PreferenceFragmentCompat) {
